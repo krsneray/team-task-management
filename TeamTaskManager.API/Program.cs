@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Text;
 using TeamTaskManager.API;
 using TeamTaskManager.DataAccess;
@@ -45,14 +46,34 @@ builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT token'ınızı 'Bearer {token}' formatında girin."
+    });
+
+    options.AddSecurityRequirement(document =>
+        new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+        });
+});
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
     await DbSeeder.SeedRolesAsync(roleManager);
+    await DbSeeder.SeedAdminUserAsync(userManager, builder.Configuration);
 }
 
 if (app.Environment.IsDevelopment())

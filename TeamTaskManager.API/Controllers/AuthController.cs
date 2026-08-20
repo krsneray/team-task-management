@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TeamTaskManager.Business;
 using TeamTaskManager.DTO.Auth;
@@ -76,5 +77,37 @@ public class AuthController : ControllerBase
             Roles = roles,
             ExpiresAt = expiresAt
         });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("aisgn-role")]
+    public async Task<IActionResult> AssignRole(AssignRoleRequestDto request)
+    {
+        var validRoles = new[] {"Admin", "ProjectManager", "TeamMember"};
+        if(!validRoles.Contains(request.Role))
+        {
+            return BadRequest("Geçersiz rol. Geçerli roller: Admin, ProjectManager, TeamMember");
+        }
+
+        var user = await _userManager.FindByEmailAsync(request.UserEmail);
+        if(user == null)
+        {
+            return BadRequest("Kullanıcı bulunamadı.");
+        }
+
+        var alreadyInRole = await _userManager.IsInRoleAsync(user,request.Role);
+        if (alreadyInRole)
+        {
+            return BadRequest("Kullanıcıya bu rol zaten atanmış.");
+        }
+
+        var result = await _userManager.AddToRoleAsync(user,request.Role);
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description);
+            return BadRequest(errors);
+        }
+
+        return Ok($"{user.Email} kullanıcısına {request.Role} rolü atandı.");
     }
 }
