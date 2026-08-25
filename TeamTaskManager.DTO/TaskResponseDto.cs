@@ -1,0 +1,32 @@
+using static TeamTaskManager.Entities.Enums;
+
+namespace TeamTaskManager.DTO;
+
+public class TaskResponseDto
+{
+    public int Id { get; set; }
+
+    public int ProjectId { get; set; }
+
+    public string Title { get; set; } = default!;
+
+    public string? Description { get; set; }
+
+    public string AssignedUserId { get; set; } = default!;
+
+    public TaskPriority Priority { get; set; }
+
+    public ProjectTaskStatus Status { get; set; }
+
+    public DateOnly? StartDate { get; set; }
+
+    public DateOnly DueDate { get; set; }
+
+    public DateTime? CompletedDate { get; set; }
+
+    public string CreatedByUserId { get; set; } = default!;
+
+    public DateTime CreatedDate { get; set; }
+
+    public DateTime? UpdatedDate { get; set; }
+}

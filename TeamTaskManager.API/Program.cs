@@ -18,6 +18,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<TeamTaskManager.Business.JwtTokenService>();
+builder.Services.AddScoped<TeamTaskManager.Business.ProjectService>();
+builder.Services.AddScoped<TeamTaskManager.Business.TaskService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
