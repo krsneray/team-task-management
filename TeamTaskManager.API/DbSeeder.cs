@@ -25,8 +25,13 @@ public static class DbSeeder
         var adminMail = configuration["InitialAdmin:Email"];
         var existingAdmin = await userManager.FindByEmailAsync(adminMail);
 
-        if(existingAdmin != null)
+        if (existingAdmin != null)
         {
+            if (!await userManager.IsInRoleAsync(existingAdmin, "Admin"))
+            {
+                await userManager.AddToRoleAsync(existingAdmin, "Admin");
+            }
+
             return;
         }
 
