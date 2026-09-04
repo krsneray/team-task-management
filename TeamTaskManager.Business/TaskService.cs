@@ -40,13 +40,23 @@ public class TaskService
         return MapToDto(task);
     }
 
-    public async Task<List<TaskResponseDto>> GetTasksAsync(string currentUserId)
+    public async Task<List<TaskResponseDto>> GetTasksAsync(
+        string currentUserId)
     {
         var tasks = await _context.Tasks
-            .Where(t => _context.ProjectMembers.Any(pm =>
-                pm.ProjectId == t.ProjectId &&
-                pm.UserId == currentUserId &&
-                pm.IsActive))
+            .Where(t =>
+                // Projenin yöneticisiyse görevleri görebilir
+                _context.Projects.Any(p =>
+                    p.Id == t.ProjectId &&
+                    p.ManagerUserId == currentUserId)
+
+                ||
+
+                // Projenin aktif üyesiyse görevleri görebilir
+                _context.ProjectMembers.Any(pm =>
+                    pm.ProjectId == t.ProjectId &&
+                    pm.UserId == currentUserId &&
+                    pm.IsActive))
             .ToListAsync();
 
         return tasks
@@ -61,10 +71,20 @@ public class TaskService
         var task = await _context.Tasks
             .FirstOrDefaultAsync(t =>
                 t.Id == id &&
-                _context.ProjectMembers.Any(pm =>
-                    pm.ProjectId == t.ProjectId &&
-                    pm.UserId == currentUserId &&
-                    pm.IsActive));
+                (
+                    // Projenin yöneticisi mi
+                    _context.Projects.Any(p =>
+                        p.Id == t.ProjectId &&
+                        p.ManagerUserId == currentUserId)
+
+                    ||
+
+                    // Projenin aktif üyesi mi
+                    _context.ProjectMembers.Any(pm =>
+                        pm.ProjectId == t.ProjectId &&
+                        pm.UserId == currentUserId &&
+                        pm.IsActive)
+                ));
 
         if (task == null)
             return null;
@@ -74,13 +94,17 @@ public class TaskService
 
     public async Task<TaskResponseDto?> UpdateTaskAsync(
         int id,
-        UpdateTaskDto dto)
+        UpdateTaskDto dto,
+        string currentUserId)
     {
         var task = await _context.Tasks
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (task == null)
             return null;
+
+        // Eski durumu tutuyoruz
+        var oldStatus = task.Status;
 
         task.Title = dto.Title;
         task.Description = dto.Description;
@@ -95,6 +119,42 @@ public class TaskService
             task.CompletedDate == null)
         {
             task.CompletedDate = DateTime.UtcNow;
+        }
+
+        // Görev durumu değiştiyse
+        if (oldStatus != dto.Status)
+        {
+            // Aktivite kaydı oluşturuyoruz
+            var activityLog = new ActivityLog
+            {
+                UserId = currentUserId,
+                EntityType = "Task",
+                EntityId = task.Id,
+                Action = "StatusChanged",
+                Description =
+                    $"Görev durumu {oldStatus} durumundan {dto.Status} durumuna değiştirildi.",
+                CreatedDate = DateTime.UtcNow
+            };
+
+            _context.ActivityLogs.Add(activityLog);
+
+            // Göreve atanmış kullanıcı varsa bildirim oluşturuyoruz
+            if (!string.IsNullOrEmpty(task.AssignedUserId))
+            {
+                var notification = new Notification
+                {
+                    UserId = task.AssignedUserId,
+                    Title = "Görev durumu değişti",
+                    Message =
+                        $"{task.Title} görevinin durumu {dto.Status} olarak değiştirildi.",
+                    Type = NotificationType.TaskStatusChanged,
+                    RelatedEntityId = task.Id,
+                    IsRead = false,
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                _context.Notifications.Add(notification);
+            }
         }
 
         await _context.SaveChangesAsync();

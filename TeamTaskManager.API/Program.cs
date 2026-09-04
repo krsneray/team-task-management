@@ -20,6 +20,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
 builder.Services.AddScoped<TeamTaskManager.Business.JwtTokenService>();
 builder.Services.AddScoped<TeamTaskManager.Business.ProjectService>();
 builder.Services.AddScoped<TeamTaskManager.Business.TaskService>();
+builder.Services.AddScoped<TeamTaskManager.Business.TaskCommentService>();
+builder.Services.AddScoped<TeamTaskManager.Business.TaskAttachmentService>();
+builder.Services.AddScoped<TeamTaskManager.Business.NotificationService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
@@ -29,7 +32,8 @@ builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
+})
+.AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -37,9 +41,13 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
+
         ValidIssuer = jwtIssuer,
         ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!)),
+
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtKey!)
+        )
     };
 });
 
@@ -48,6 +56,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -71,16 +80,24 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager =
+        scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    var userManager =
+        scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
     await DbSeeder.SeedRolesAsync(roleManager);
-    await DbSeeder.SeedAdminUserAsync(userManager, builder.Configuration);
+
+    await DbSeeder.SeedAdminUserAsync(
+        userManager,
+        builder.Configuration
+    );
 }
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
     app.UseSwagger();
     app.UseSwaggerUI();
 }
@@ -89,6 +106,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
