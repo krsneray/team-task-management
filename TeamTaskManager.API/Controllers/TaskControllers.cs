@@ -80,9 +80,16 @@ public class TaskController : ControllerBase
         int id,
         UpdateTaskDto dto)
     {
+        var currentUserId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (currentUserId == null)
+            return Unauthorized();
+
         var result = await _taskService.UpdateTaskAsync(
             id,
-            dto);
+            dto,
+            currentUserId);
 
         if (result == null)
             return NotFound();
