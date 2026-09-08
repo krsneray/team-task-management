@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TeamTaskManager.Business;
 using TeamTaskManager.DTO.Auth;
+using TeamTaskManager.DTO.Common;
 using TeamTaskManager.Entities;
 
 namespace TeamTaskManager.API.Controllers;
-
 
 [ApiController]
 [Route("api/[controller]")]
@@ -25,9 +25,9 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register(RegisterRequestDto request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if(existingUser != null)
+        if (existingUser != null)
         {
-            return BadRequest("Bu e-posta adresi zaten kayıtlı.");
+            return BadRequest(new ApiErrorResponse { Title = "Kayıt Hatası", StatusCode = 400, Errors = new List<string> { "Bu e-posta adresi zaten kayıtlı." } });
         }
 
         var user = new ApplicationUser
@@ -40,30 +40,30 @@ public class AuthController : ControllerBase
 
         var result = await _userManager.CreateAsync(user, request.Password);
 
-        if(!result.Succeeded)
+        if (!result.Succeeded)
         {
-            var errors = result.Errors.Select(e => e.Description);
-            return BadRequest(errors);
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            return BadRequest(new ApiErrorResponse { Title = "Kayıt Hatası", StatusCode = 400, Errors = errors });
         }
 
         await _userManager.AddToRoleAsync(user, "TeamMember");
 
-        return Ok("Kayıt başarılı.");
+        return Ok(new { Message = "Kayıt başarılı." });
     }
 
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(LoginRequestDto request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
-        if( user == null )
+        if (user == null)
         {
-            return BadRequest("E-posta veya şifre hatalı.");
+            return BadRequest(new ApiErrorResponse { Title = "Giriş Hatası", StatusCode = 400, Errors = new List<string> { "E-posta veya şifre hatalı." } });
         }
 
-        var passwordValid = await _userManager.CheckPasswordAsync(user,request.Password);
-        if(passwordValid == false)
+        var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (passwordValid == false)
         {
-            return BadRequest("E-posta veya şifre hatalı.");
+            return BadRequest(new ApiErrorResponse { Title = "Giriş Hatası", StatusCode = 400, Errors = new List<string> { "E-posta veya şifre hatalı." } });
         }
 
         var roles = await _userManager.GetRolesAsync(user);
@@ -80,34 +80,34 @@ public class AuthController : ControllerBase
     }
 
     [Authorize(Roles = "Admin")]
-    [HttpPost("aisgn-role")]
+    [HttpPost("assign-role")] 
     public async Task<IActionResult> AssignRole(AssignRoleRequestDto request)
     {
-        var validRoles = new[] {"Admin", "ProjectManager", "TeamMember"};
-        if(!validRoles.Contains(request.Role))
+        var validRoles = new[] { "Admin", "ProjectManager", "TeamMember" };
+        if (!validRoles.Contains(request.Role))
         {
-            return BadRequest("Geçersiz rol. Geçerli roller: Admin, ProjectManager, TeamMember");
+            return BadRequest(new ApiErrorResponse { Title = "Geçersiz Rol", StatusCode = 400, Errors = new List<string> { "Geçersiz rol. Geçerli roller: Admin, ProjectManager, TeamMember" } });
         }
 
         var user = await _userManager.FindByEmailAsync(request.UserEmail);
-        if(user == null)
+        if (user == null)
         {
-            return BadRequest("Kullanıcı bulunamadı.");
+            return NotFound(new ApiErrorResponse { Title = "Kullanıcı Bulunamadı", StatusCode = 404, Errors = new List<string> { "Kullanıcı bulunamadı." } });
         }
 
-        var alreadyInRole = await _userManager.IsInRoleAsync(user,request.Role);
+        var alreadyInRole = await _userManager.IsInRoleAsync(user, request.Role);
         if (alreadyInRole)
         {
-            return BadRequest("Kullanıcıya bu rol zaten atanmış.");
+            return BadRequest(new ApiErrorResponse { Title = "Rol Atama Hatası", StatusCode = 400, Errors = new List<string> { "Kullanıcıya bu rol zaten atanmış." } });
         }
 
-        var result = await _userManager.AddToRoleAsync(user,request.Role);
+        var result = await _userManager.AddToRoleAsync(user, request.Role);
         if (!result.Succeeded)
         {
-            var errors = result.Errors.Select(e => e.Description);
-            return BadRequest(errors);
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            return BadRequest(new ApiErrorResponse { Title = "Rol Atama Hatası", StatusCode = 400, Errors = errors });
         }
 
-        return Ok($"{user.Email} kullanıcısına {request.Role} rolü atandı.");
+        return Ok(new { Message = $"{user.Email} kullanıcısına {request.Role} rolü atandı." });
     }
 }

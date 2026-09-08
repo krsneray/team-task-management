@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TeamTaskManager.Business;
 using TeamTaskManager.DTO;
+using TeamTaskManager.DTO.Common;
 
 namespace TeamTaskManager.API.Controllers;
 
@@ -18,7 +19,6 @@ public class TaskController : ControllerBase
         _taskService = taskService;
     }
 
-    // POST: api/Task
     [HttpPost]
     [Authorize(Roles = "Admin,ProjectManager")]
     public async Task<ActionResult<TaskResponseDto>> CreateTask(
@@ -37,7 +37,6 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
-    // GET: api/Task
     [HttpGet]
     public async Task<ActionResult<List<TaskResponseDto>>> GetTasks()
     {
@@ -53,7 +52,6 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
-    // GET: api/Task/{id}
     [HttpGet("{id}")]
     public async Task<ActionResult<TaskResponseDto>> GetTask(int id)
     {
@@ -73,7 +71,6 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
-    // PUT: api/Task/{id}
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,ProjectManager")]
     public async Task<ActionResult<TaskResponseDto>> UpdateTask(
@@ -97,15 +94,19 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
-    // DELETE: api/Task/{id}
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,ProjectManager")]
     public async Task<IActionResult> DeleteTask(int id)
     {
-        var result = await _taskService.DeleteTaskAsync(id);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        var result = await _taskService.DeleteTaskAsync(id, currentUserId);
 
         if (!result)
-            return NotFound();
+            return NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Görev bulunamadı." } });
 
         return NoContent();
     }

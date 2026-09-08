@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using TeamTaskManager.DTO;
+using TeamTaskManager.DTO.Common; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TeamTaskManager.Business;
@@ -17,7 +18,6 @@ public class ProjectController : ControllerBase
         _projectService = projectService;
     }
 
-    // POST: api/Project
     [Authorize(Roles = "Admin,ProjectManager")]
     [HttpPost]
     public async Task<ActionResult<ProjectResponseDto>> CreateProject(
@@ -36,7 +36,6 @@ public class ProjectController : ControllerBase
         return Ok(result);
     }
 
-    // GET: api/Project
     [Authorize]
     [HttpGet]
     public async Task<ActionResult<List<ProjectResponseDto>>> GetProjects()
@@ -46,7 +45,6 @@ public class ProjectController : ControllerBase
         return Ok(result);
     }
 
-    // GET: api/Project/{id}
     [Authorize]
     [HttpGet("{id}")]
     public async Task<ActionResult<ProjectResponseDto>> GetProjectById(int id)
@@ -54,12 +52,11 @@ public class ProjectController : ControllerBase
         var result = await _projectService.GetProjectByIdAsync(id);
 
         if (result == null)
-            return NotFound();
+            return NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Proje bulunamadı." } }); 
 
         return Ok(result);
     }
 
-    // PUT: api/Project/{id}
     [Authorize(Roles = "Admin,ProjectManager")]
     [HttpPut("{id}")]
     public async Task<ActionResult<ProjectResponseDto>> UpdateProject(
@@ -80,17 +77,21 @@ public class ProjectController : ControllerBase
                 currentUserId);
 
             if (result == null)
-                return NotFound();
+                return NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Proje bulunamadı." } }); 
 
             return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Forbid(ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiErrorResponse
+            {
+                Title = "Yetki Hatası",
+                StatusCode = 403,
+                Errors = new List<string> { ex.Message }
+            });
         }
     }
 
-    // DELETE: api/Project/{id}
     [Authorize(Roles = "Admin,ProjectManager")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteProject(int id)
@@ -108,13 +109,18 @@ public class ProjectController : ControllerBase
                 currentUserId);
 
             if (!result)
-                return NotFound();
+                return NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Proje bulunamadı." } }); 
 
             return NoContent();
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Forbid(ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiErrorResponse
+            {
+                Title = "Yetki Hatası",
+                StatusCode = 403,
+                Errors = new List<string> { ex.Message }
+            });
         }
     }
 }

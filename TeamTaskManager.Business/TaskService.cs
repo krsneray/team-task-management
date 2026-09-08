@@ -26,7 +26,7 @@ public class TaskService
             Description = dto.Description,
             AssignedUserId = dto.AssignedUserId,
             Priority = dto.Priority,
-            Status = dto.Status,
+            Status = ProjectTaskStatus.New, 
             StartDate = dto.StartDate,
             DueDate = dto.DueDate,
             CreatedByUserId = createdByUserId,
@@ -45,14 +45,12 @@ public class TaskService
     {
         var tasks = await _context.Tasks
             .Where(t =>
-                // Projenin yöneticisiyse görevleri görebilir
                 _context.Projects.Any(p =>
                     p.Id == t.ProjectId &&
                     p.ManagerUserId == currentUserId)
 
                 ||
 
-                // Projenin aktif üyesiyse görevleri görebilir
                 _context.ProjectMembers.Any(pm =>
                     pm.ProjectId == t.ProjectId &&
                     pm.UserId == currentUserId &&
@@ -72,14 +70,12 @@ public class TaskService
             .FirstOrDefaultAsync(t =>
                 t.Id == id &&
                 (
-                    // Projenin yöneticisi mi
                     _context.Projects.Any(p =>
                         p.Id == t.ProjectId &&
                         p.ManagerUserId == currentUserId)
 
                     ||
 
-                    // Projenin aktif üyesi mi
                     _context.ProjectMembers.Any(pm =>
                         pm.ProjectId == t.ProjectId &&
                         pm.UserId == currentUserId &&
@@ -103,7 +99,6 @@ public class TaskService
         if (task == null)
             return null;
 
-        // Eski durumu tutuyoruz
         var oldStatus = task.Status;
 
         task.Title = dto.Title;
@@ -115,16 +110,14 @@ public class TaskService
         task.DueDate = dto.DueDate;
         task.UpdatedDate = DateTime.UtcNow;
 
-        if (task.Status == ProjectTaskStatus.Finish &&
+        if (task.Status == ProjectTaskStatus.Completed &&
             task.CompletedDate == null)
         {
             task.CompletedDate = DateTime.UtcNow;
         }
 
-        // Görev durumu değiştiyse
         if (oldStatus != dto.Status)
         {
-            // Aktivite kaydı oluşturuyoruz
             var activityLog = new ActivityLog
             {
                 UserId = currentUserId,
@@ -138,7 +131,6 @@ public class TaskService
 
             _context.ActivityLogs.Add(activityLog);
 
-            // Göreve atanmış kullanıcı varsa bildirim oluşturuyoruz
             if (!string.IsNullOrEmpty(task.AssignedUserId))
             {
                 var notification = new Notification
@@ -162,13 +154,19 @@ public class TaskService
         return MapToDto(task);
     }
 
-    public async Task<bool> DeleteTaskAsync(int id)
+    public async Task<bool> DeleteTaskAsync(int id, string currentUserId)
     {
         var task = await _context.Tasks
+            .Include(t => t.Project) 
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (task == null)
             return false;
+
+        if (task.Project.ManagerUserId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("Bu görevi silmek için yetkiniz yok. Sadece projenin yöneticisi silebilir.");
+        }
 
         _context.Tasks.Remove(task);
 

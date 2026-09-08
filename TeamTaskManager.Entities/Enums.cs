@@ -19,9 +19,9 @@ public class Enums
     public enum ProjectTaskStatus
     {
         New,
-        Continues,
+        InProgress, 
         OnHold,
-        Finish,
+        Completed,  
         Cancelled
     }
     public enum ProjectRole

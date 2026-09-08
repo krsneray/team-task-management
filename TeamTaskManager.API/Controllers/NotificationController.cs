@@ -19,7 +19,6 @@ public class NotificationController : ControllerBase
     }
 
 
-    // 1- Kullanıcının bildirimlerini getirme
     [HttpGet]
     public async Task<ActionResult<List<NotificationResponseDto>>>
         GetNotifications()
@@ -37,7 +36,6 @@ public class NotificationController : ControllerBase
     }
 
 
-    // 2- Bildirimi okundu yapma
     [HttpPut("{id}/read")]
     public async Task<IActionResult> MarkAsRead(int id)
     {
