@@ -16,8 +16,8 @@ public class ProjectService
     }
 
     public async Task<ProjectResponseDto> CreateProjectAsync(
-        CreateProjectDto dto,
-        string managerUserId)
+    CreateProjectDto dto,
+    string managerUserId)
     {
         var project = new Project
         {
@@ -32,6 +32,19 @@ public class ProjectService
         };
 
         _context.Projects.Add(project);
+
+        await _context.SaveChangesAsync();
+
+        var managerMembership = new ProjectMember
+        {
+            ProjectId = project.Id,
+            UserId = managerUserId,
+            MemberRole = ProjectRole.Manager,
+            JoinedDate = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        _context.ProjectMembers.Add(managerMembership);
 
         await _context.SaveChangesAsync();
 

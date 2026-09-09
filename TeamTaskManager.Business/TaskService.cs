@@ -16,8 +16,8 @@ public class TaskService
     }
 
     public async Task<TaskResponseDto> CreateTaskAsync(
-        CreateTaskDto dto,
-        string createdByUserId)
+    CreateTaskDto dto,
+    string createdByUserId)
     {
         var task = new TaskItem
         {
@@ -26,7 +26,7 @@ public class TaskService
             Description = dto.Description,
             AssignedUserId = dto.AssignedUserId,
             Priority = dto.Priority,
-            Status = ProjectTaskStatus.New, 
+            Status = ProjectTaskStatus.New,
             StartDate = dto.StartDate,
             DueDate = dto.DueDate,
             CreatedByUserId = createdByUserId,
@@ -34,6 +34,21 @@ public class TaskService
         };
 
         _context.Tasks.Add(task);
+
+        await _context.SaveChangesAsync();
+
+        var notification = new Notification
+        {
+            UserId = task.AssignedUserId,
+            Title = "Yeni görev atandı",
+            Message = $"'{task.Title}' görevi size atandı.",
+            Type = NotificationType.TaskAssigned,
+            RelatedEntityId = task.Id,
+            IsRead = false,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        _context.Notifications.Add(notification);
 
         await _context.SaveChangesAsync();
 
