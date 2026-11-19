@@ -23,7 +23,15 @@ public class TaskAttachmentController : ControllerBase
         _environment = environment;
     }
 
+    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".txt", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"
+    };
+
     [HttpPost("upload/{taskItemId}")]
+    [RequestSizeLimit(MaxFileSizeBytes + 1024 * 1024)]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<TaskAttachmentResponseDto>> UploadFile(
         int taskItemId,
@@ -36,6 +44,12 @@ public class TaskAttachmentController : ControllerBase
 
         if (file == null || file.Length == 0)
             return BadRequest(new ApiErrorResponse { Title = "Hata", StatusCode = 400, Errors = new List<string> { "Dosya seçilmedi." } });
+
+        if (file.Length > MaxFileSizeBytes)
+            return BadRequest(new ApiErrorResponse { Title = "Hata", StatusCode = 400, Errors = new List<string> { "Dosya boyutu en fazla 10 MB olabilir." } });
+
+        if (!AllowedExtensions.Contains(Path.GetExtension(file.FileName)))
+            return BadRequest(new ApiErrorResponse { Title = "Hata", StatusCode = 400, Errors = new List<string> { "Bu dosya türüne izin verilmiyor." } });
 
         var uploadsFolder = Path.Combine(_environment.ContentRootPath, "Uploads");
 

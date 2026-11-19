@@ -14,7 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        options.Password.RequiredLength = 8;
+    })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
@@ -26,6 +29,13 @@ builder.Services.AddScoped<TeamTaskManager.Business.TaskAttachmentService>();
 builder.Services.AddScoped<TeamTaskManager.Business.NotificationService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key ayarlanmamış ya da 32 karakterden kısa. " +
+        "Örnek: dotnet user-secrets set \"Jwt:Key\" \"<en az 32 karakterlik rastgele bir değer>\" " +
+        "--project TeamTaskManager.API (ayrıntılar için README'ye bakın).");
+}
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 
@@ -53,6 +63,23 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Clients", policy =>
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+    });
+});
 
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
@@ -129,6 +156,8 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<TeamTaskManager.API.Middleware.ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
+
+app.UseCors("Clients");
 
 app.UseAuthentication();
 app.UseAuthorization();

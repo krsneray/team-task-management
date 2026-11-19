@@ -34,6 +34,14 @@ public class TaskController : ControllerBase
             dto,
             createdByUserId);
 
+        if (result == null)
+            return BadRequest(new ApiErrorResponse
+            {
+                Title = "Hata",
+                StatusCode = 400,
+                Errors = new List<string> { "Proje ya da atanan kullanıcı bulunamadı." }
+            });
+
         return Ok(result);
     }
 
@@ -82,6 +90,14 @@ public class TaskController : ControllerBase
 
         if (currentUserId == null)
             return Unauthorized();
+
+        if (!await _taskService.UserExistsAsync(dto.AssignedUserId))
+            return BadRequest(new ApiErrorResponse
+            {
+                Title = "Hata",
+                StatusCode = 400,
+                Errors = new List<string> { "Atanan kullanıcı bulunamadı." }
+            });
 
         var result = await _taskService.UpdateTaskAsync(
             id,

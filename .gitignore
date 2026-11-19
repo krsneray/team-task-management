@@ -427,3 +427,8 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Proje
+TeamTaskManager.API/Uploads/
+appsettings.Local.json
+*.Backup.tmp

@@ -23,6 +23,14 @@ public static class DbSeeder
     public static async Task SeedAdminUserAsync(UserManager<ApplicationUser> userManager, IConfiguration configuration)
     {
         var adminMail = configuration["InitialAdmin:Email"];
+        var initialPassword = configuration["InitialAdmin:Password"];
+
+        // E-posta ya da parola ayarlanmamışsa ilk yönetici oluşturulmaz.
+        if (string.IsNullOrWhiteSpace(adminMail) || string.IsNullOrWhiteSpace(initialPassword))
+        {
+            return;
+        }
+
         var existingAdmin = await userManager.FindByEmailAsync(adminMail);
 
         if (existingAdmin != null)
@@ -44,8 +52,7 @@ public static class DbSeeder
             EmailConfirmed = true
         };
 
-        var password = configuration["InitialAdmin:Password"]!;
-        var result = await userManager.CreateAsync(adminUser, password);
+        var result = await userManager.CreateAsync(adminUser, initialPassword);
 
         if (result.Succeeded)
         {

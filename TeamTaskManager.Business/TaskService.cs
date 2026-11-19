@@ -15,10 +15,18 @@ public class TaskService
         _context = context;
     }
 
-    public async Task<TaskResponseDto> CreateTaskAsync(
+    public async Task<TaskResponseDto?> CreateTaskAsync(
     CreateTaskDto dto,
     string createdByUserId)
     {
+        var assigneeExists = await _context.Users
+            .AnyAsync(u => u.Id == dto.AssignedUserId);
+        var projectExists = await _context.Projects
+            .AnyAsync(p => p.Id == dto.ProjectId);
+
+        if (!assigneeExists || !projectExists)
+            return null;
+
         var task = new TaskItem
         {
             ProjectId = dto.ProjectId,
@@ -101,6 +109,11 @@ public class TaskService
             return null;
 
         return MapToDto(task);
+    }
+
+    public Task<bool> UserExistsAsync(string userId)
+    {
+        return _context.Users.AnyAsync(u => u.Id == userId);
     }
 
     public async Task<TaskResponseDto?> UpdateTaskAsync(
