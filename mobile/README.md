@@ -6,10 +6,9 @@ Team Task Manager sisteminin Flutter ile geliştirilmiş mobil istemcisi. Backen
 
 - E-posta ve parola ile giriş (JWT, token güvenli depoda saklanır)
 - Ana sayfada açık görev, geciken görev ve okunmamış bildirim özeti
-- Görev listesi ve görev detayı
-- Görev durumu güncelleme
-- Görevlere yorum ekleme
+- Görev listesi ve görev detayı ekranı (detay ekranı şimdilik statik arayüz; API'ye bağlanması planlanıyor)
 - Bildirimler
+- Profil ekranı
 - Açık ve koyu tema
 
 > Kullanıcı kaydı mobil uygulamadan yapılmaz; hesaplar yönetici tarafından oluşturulur.
