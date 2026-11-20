@@ -110,6 +110,39 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPatch("{id}/status")]
+    public async Task<ActionResult<TaskResponseDto>> UpdateTaskStatus(
+        int id,
+        UpdateTaskStatusDto dto)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        try
+        {
+            var result = await _taskService.UpdateTaskStatusAsync(
+                id,
+                dto.Status,
+                currentUserId);
+
+            if (result == null)
+                return NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Görev bulunamadı." } });
+
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiErrorResponse
+            {
+                Title = "Yetki Hatası",
+                StatusCode = 403,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,ProjectManager")]
     public async Task<IActionResult> DeleteTask(int id)

@@ -6,6 +6,14 @@ using static TeamTaskManager.Entities.Enums;
 
 namespace TeamTaskManager.Business;
 
+public enum AddMemberResult
+{
+    Added,
+    ProjectNotFound,
+    UserNotFound,
+    AlreadyMember
+}
+
 public class ProjectService
 {
     private readonly AppDbContext _context;
@@ -113,6 +121,129 @@ public class ProjectService
                 "Bu projeyi sadece proje yöneticisi silebilir.");
 
         _context.Projects.Remove(project);
+
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<List<ProjectMemberResponseDto>?> GetMembersAsync(int projectId)
+    {
+        var exists = await _context.Projects.AnyAsync(p => p.Id == projectId);
+
+        if (!exists)
+            return null;
+
+        var members = await _context.ProjectMembers
+            .Where(pm => pm.ProjectId == projectId && pm.IsActive)
+            .Include(pm => pm.User)
+            .OrderBy(pm => pm.MemberRole)
+            .ThenBy(pm => pm.JoinedDate)
+            .ToListAsync();
+
+        return members
+            .Select(pm => new ProjectMemberResponseDto
+            {
+                UserId = pm.UserId,
+                FullName = $"{pm.User.FirstName} {pm.User.LastName}",
+                Email = pm.User.Email ?? "",
+                MemberRole = pm.MemberRole,
+                IsActive = pm.IsActive,
+                JoinedDate = pm.JoinedDate
+            })
+            .ToList();
+    }
+
+    public async Task<AddMemberResult> AddMemberAsync(
+        int projectId,
+        string userId,
+        string currentUserId)
+    {
+        var project = await _context.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId);
+
+        if (project == null)
+            return AddMemberResult.ProjectNotFound;
+
+        if (project.ManagerUserId != currentUserId)
+            throw new UnauthorizedAccessException(
+                "Projeye üyeyi sadece proje yöneticisi ekleyebilir.");
+
+        var userExists = await _context.Users
+            .AnyAsync(u => u.Id == userId && u.IsActive);
+
+        if (!userExists)
+            return AddMemberResult.UserNotFound;
+
+        var membership = await _context.ProjectMembers
+            .FirstOrDefaultAsync(pm =>
+                pm.ProjectId == projectId && pm.UserId == userId);
+
+        if (membership != null && membership.IsActive)
+            return AddMemberResult.AlreadyMember;
+
+        if (membership == null)
+        {
+            _context.ProjectMembers.Add(new ProjectMember
+            {
+                ProjectId = projectId,
+                UserId = userId,
+                MemberRole = ProjectRole.Member,
+                JoinedDate = DateTime.UtcNow,
+                IsActive = true
+            });
+        }
+        else
+        {
+            membership.IsActive = true;
+            membership.JoinedDate = DateTime.UtcNow;
+        }
+
+        _context.Notifications.Add(new Notification
+        {
+            UserId = userId,
+            Title = "Projeye eklendiniz",
+            Message = $"'{project.Name}' projesine üye olarak eklendiniz.",
+            Type = NotificationType.ProjectMemberAdded,
+            RelatedEntityId = project.Id,
+            IsRead = false,
+            CreatedDate = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+
+        return AddMemberResult.Added;
+    }
+
+    public async Task<bool> RemoveMemberAsync(
+        int projectId,
+        string userId,
+        string currentUserId)
+    {
+        var project = await _context.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId);
+
+        if (project == null)
+            return false;
+
+        if (project.ManagerUserId != currentUserId)
+            throw new UnauthorizedAccessException(
+                "Projeden üyeyi sadece proje yöneticisi çıkarabilir.");
+
+        if (project.ManagerUserId == userId)
+            throw new InvalidOperationException(
+                "Proje yöneticisi projeden çıkarılamaz.");
+
+        var membership = await _context.ProjectMembers
+            .FirstOrDefaultAsync(pm =>
+                pm.ProjectId == projectId &&
+                pm.UserId == userId &&
+                pm.IsActive);
+
+        if (membership == null)
+            return false;
+
+        membership.IsActive = false;
 
         await _context.SaveChangesAsync();
 

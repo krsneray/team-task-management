@@ -27,6 +27,7 @@ builder.Services.AddScoped<TeamTaskManager.Business.TaskService>();
 builder.Services.AddScoped<TeamTaskManager.Business.TaskCommentService>();
 builder.Services.AddScoped<TeamTaskManager.Business.TaskAttachmentService>();
 builder.Services.AddScoped<TeamTaskManager.Business.NotificationService>();
+builder.Services.AddScoped<TeamTaskManager.Business.DashboardService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)

@@ -88,6 +88,22 @@ Mobil uygulamalar için CORS gerekmez.
 
 Görevlere eklenen dosyalar `TeamTaskManager.API/Uploads/` klasörüne kaydedilir (repoya girmez). En fazla 10 MB; pdf, png, jpg, jpeg, gif, txt, doc/docx, xls/xlsx, ppt/pptx ve zip uzantılarına izin verilir.
 
+## Web istemcisi
+
+`web/` klasöründe React + TypeScript + Vite ile yazılmış web arayüzü bulunur (mobil uygulamayla aynı tema, açık/koyu mod).
+
+```bash
+cd web
+cp .env.example .env     # API adresi: VITE_API_URL=http://localhost:5052
+npm install
+npm run dev              # http://localhost:5173
+npm test                 # birim ve bileşen testleri
+npm run build            # üretim derlemesi
+```
+
+Ekranlar: giriş, dashboard, projeler (liste/detay/üyeler), görevler (filtre, sıralama, sayfalama, liste ve Kanban panosu), görev detayı (durum, yorum, dosya eki), bildirimler, kullanıcılar (yalnızca Admin).
+API'nin geliştirme ortamında `http://localhost:5173` adresine CORS izni vardır (`appsettings.Development.json`).
+
 ## Ekran görüntüleri
 
 (Swagger ve istemci ekranlarının görüntüleri buraya eklenecek.)

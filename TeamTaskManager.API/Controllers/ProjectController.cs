@@ -123,4 +123,86 @@ public class ProjectController : ControllerBase
             });
         }
     }
+
+    [Authorize]
+    [HttpGet("{id}/members")]
+    public async Task<ActionResult<List<ProjectMemberResponseDto>>> GetMembers(int id)
+    {
+        var result = await _projectService.GetMembersAsync(id);
+
+        if (result == null)
+            return NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Proje bulunamadı." } });
+
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "Admin,ProjectManager")]
+    [HttpPost("{id}/members")]
+    public async Task<IActionResult> AddMember(int id, AddProjectMemberDto dto)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        try
+        {
+            var result = await _projectService.AddMemberAsync(id, dto.UserId, currentUserId);
+
+            return result switch
+            {
+                AddMemberResult.Added => NoContent(),
+                AddMemberResult.ProjectNotFound => NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Proje bulunamadı." } }),
+                AddMemberResult.UserNotFound => BadRequest(new ApiErrorResponse { Title = "Hata", StatusCode = 400, Errors = new List<string> { "Kullanıcı bulunamadı ya da pasif." } }),
+                _ => BadRequest(new ApiErrorResponse { Title = "Hata", StatusCode = 400, Errors = new List<string> { "Kullanıcı zaten projenin üyesi." } })
+            };
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiErrorResponse
+            {
+                Title = "Yetki Hatası",
+                StatusCode = 403,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
+    [Authorize(Roles = "Admin,ProjectManager")]
+    [HttpDelete("{id}/members/{userId}")]
+    public async Task<IActionResult> RemoveMember(int id, string userId)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        try
+        {
+            var result = await _projectService.RemoveMemberAsync(id, userId, currentUserId);
+
+            if (!result)
+                return NotFound(new ApiErrorResponse { Title = "Bulunamadı", StatusCode = 404, Errors = new List<string> { "Proje ya da üye bulunamadı." } });
+
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiErrorResponse
+            {
+                Title = "Yetki Hatası",
+                StatusCode = 403,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Title = "Hata",
+                StatusCode = 400,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
 }

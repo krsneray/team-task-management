@@ -67,11 +67,17 @@ public class AuthController : ControllerBase
             return BadRequest(new ApiErrorResponse { Title = "Giriş Hatası", StatusCode = 400, Errors = new List<string> { "E-posta veya şifre hatalı." } });
         }
 
+        if (!user.IsActive)
+        {
+            return BadRequest(new ApiErrorResponse { Title = "Giriş Hatası", StatusCode = 400, Errors = new List<string> { "Hesabınız pasif durumda. Lütfen yöneticinizle iletişime geçin." } });
+        }
+
         var roles = await _userManager.GetRolesAsync(user);
         var (token, expiresAt) = _jwtTokenService.GenerateToken(user, roles);
 
         return Ok(new AuthResponseDto
         {
+            UserId = user.Id,
             Token = token,
             Email = user.Email!,
             FullName = $"{user.FirstName} {user.LastName}",

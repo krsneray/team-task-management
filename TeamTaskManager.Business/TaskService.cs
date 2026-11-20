@@ -58,6 +58,16 @@ public class TaskService
 
         _context.Notifications.Add(notification);
 
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            UserId = createdByUserId,
+            EntityType = "Task",
+            EntityId = task.Id,
+            Action = "Created",
+            Description = $"'{task.Title}' görevi oluşturuldu.",
+            CreatedDate = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
 
         return MapToDto(task);
@@ -107,6 +117,77 @@ public class TaskService
 
         if (task == null)
             return null;
+
+        return MapToDto(task);
+    }
+
+    public async Task<TaskResponseDto?> UpdateTaskStatusAsync(
+        int id,
+        ProjectTaskStatus newStatus,
+        string currentUserId)
+    {
+        var task = await _context.Tasks
+            .Include(t => t.Project)
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        if (task == null)
+            return null;
+
+        var isManager = task.Project.ManagerUserId == currentUserId;
+        var isAssignee = task.AssignedUserId == currentUserId;
+
+        if (!isManager && !isAssignee)
+            throw new UnauthorizedAccessException(
+                "Görev durumunu yalnızca atanan kişi veya proje yöneticisi değiştirebilir.");
+
+        var oldStatus = task.Status;
+
+        if (oldStatus != newStatus)
+        {
+            task.Status = newStatus;
+            task.UpdatedDate = DateTime.UtcNow;
+
+            if (newStatus == ProjectTaskStatus.Completed)
+            {
+                task.CompletedDate ??= DateTime.UtcNow;
+            }
+            else
+            {
+                task.CompletedDate = null;
+            }
+
+            _context.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = currentUserId,
+                EntityType = "Task",
+                EntityId = task.Id,
+                Action = "StatusChanged",
+                Description =
+                    $"Görev durumu {oldStatus} durumundan {newStatus} durumuna değiştirildi.",
+                CreatedDate = DateTime.UtcNow
+            });
+
+            // Atanan kişi değiştirdiyse yöneticiye, yönetici değiştirdiyse atanan kişiye haber ver.
+            var notifyUserId = isAssignee
+                ? task.Project.ManagerUserId
+                : task.AssignedUserId;
+
+            if (!string.IsNullOrEmpty(notifyUserId) && notifyUserId != currentUserId)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = notifyUserId,
+                    Title = "Görev durumu değişti",
+                    Message = $"{task.Title} görevinin durumu {newStatus} olarak değiştirildi.",
+                    Type = NotificationType.TaskStatusChanged,
+                    RelatedEntityId = task.Id,
+                    IsRead = false,
+                    CreatedDate = DateTime.UtcNow
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
 
         return MapToDto(task);
     }
